@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d14">
+<title>Глубины — Зал стражей</title>
+<link rel="stylesheet" href="style.css?v=cat-scene-v1">
+</head>
+<body>
+<div id="app">
+  <!-- ВЕРХНИЙ HUD -->
+  <div id="hud-top">
+    <div id="hp-wrap">
+      <div id="hp-label">HP</div>
+      <div id="hp-bar"><div id="hp-fill"></div></div>
+      <div id="hp-num">24/24</div>
+    </div>
+    <div id="hud-right">
+      <span id="gold">0</span><span class="dim">зол.</span>
+    </div>
+  </div>
+
+  <div id="floor-tag">ЗАЛ СТРАЖЕЙ · ЭТАЖ 1</div>
+
+  <!-- НИЖНИЕ КНОПКИ -->
+  <div id="controls">
+    <div id="dpad">
+      <button class="dbtn" data-dir="up">▲</button>
+      <button class="dbtn" data-dir="left">◀</button>
+      <button class="dbtn" data-dir="down">▼</button>
+      <button class="dbtn" data-dir="right">▶</button>
+    </div>
+    <div id="actions">
+      <button class="abtn" id="btn-wait">ЖДАТЬ</button>
+      <button class="abtn" id="btn-talk">УДАР</button>
+    </div>
+  </div>
+
+  <!-- СТАРТОВЫЙ ЭКРАН -->
+  <div id="start">
+    <div id="start-inner">
+      <h1>ЗАЛ СТРАЖЕЙ</h1>
+      <p class="sub">каменные катакомбы · этаж 1</p>
+      <div class="rules">
+        <p><b>Ходи</b> — стрелки, WASD или кнопки на экране</p>
+        <p><b>Поговори</b> — подойди к кошечке у стены</p>
+        <p><b>Берегись</b> — шипы в центре зала</p>
+        <p><b>Жди</b> — кнопка «ЖДАТЬ» или пробел</p>
+      </div>
+      <button id="btn-start">ВОЙТИ В ЗАЛ</button>
+      <p class="tiny">Исследуй пока пустой квадратный зал.</p>
+    </div>
+  </div>
+
+  <div id="dialog" class="hidden" role="dialog" aria-modal="true" aria-labelledby="dlg-name">
+    <img id="dlg-room" src="assets/cat_room_background.png" alt="" aria-hidden="true">
+    <div id="dlg-cat" aria-hidden="true"></div>
+    <div id="dlg-scrim" aria-hidden="true"></div>
+    <div id="dlg-box">
+      <div id="dlg-name">КОШЕЧКА</div>
+      <div id="dlg-text" aria-live="polite"></div>
+      <div id="dlg-choices"></div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+<script src="scene.js?v=cat-dialogue-scene-v1"></script>
+</body>
+</html>
