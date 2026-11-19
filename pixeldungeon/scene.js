@@ -1,79 +1,40 @@
 "use strict";
 
 const TILE = 48;
-const MAP_W = 18;
+const MAP_W = 22;
 const MAP_H = 18;
-const TORCH_WIDTH = 48;
-const TORCH_HEIGHT = 72;
+const PLAYER_DISPLAY_WIDTH = 78;
+const PLAYER_DISPLAY_HEIGHT = 88;
 const FLOOR = 1;
 const WALL = 0;
 const map = new Array(MAP_W * MAP_H).fill(WALL);
 const cellKey = (x, y) => `${x},${y}`;
 const idx = (x, y) => y * MAP_W + x;
 const inBounds = (x, y) => x >= 0 && y >= 0 && x < MAP_W && y < MAP_H;
-const catCell = { x: 1, y: 5 };
+const catCell = { x: 2, y: 5 };
+const roomAmbient = [
+  { x: 1, y: 1, width: 8, height: 16, level: 0 },
+  { x: 13, y: 1, width: 8, height: 16, level: 0 }
+];
 const carve = (x1, y1, x2, y2) => {
   for (let y = y1; y <= y2; y++)
     for (let x = x1; x <= x2; x++)
       map[idx(x, y)] = FLOOR;
 };
 
-carve(1, 1, 16, 16);
+carve(1, 1, 20, 16);
 
-const spikes = new Set();
-for (let y = 8; y <= 9; y++)
-  for (let x = 8; x <= 9; x++)
-    spikes.add(cellKey(x, y));
+const corridorRows = new Set([8, 9]);
+for (let y = 1; y <= 16; y++)
+  if (!corridorRows.has(y))
+    for (let x = 9; x <= 12; x++)
+      map[idx(x, y)] = WALL;
 
-const decor = [
-  { key: "barrel", x: 2, y: 2, solid: true },
-  { key: "barrel", x: 3, y: 2, solid: true },
-  { key: "crate", x: 2, y: 3, solid: true },
-  { key: "chest", x: 5, y: 2, solid: true },
-  { key: "barrel", x: 14, y: 2, solid: true },
-  { key: "goldChest", x: 15, y: 2, solid: true },
-  { key: "crate", x: 15, y: 3, solid: true },
-  { key: "chest", x: 2, y: 14, solid: true },
-  { key: "barrel", x: 3, y: 14, solid: true },
-  { key: "crate", x: 2, y: 15, solid: true },
-  { key: "chest", x: 15, y: 14, solid: true },
-  { key: "crate", x: 14, y: 15, solid: true },
-  { key: "pot", x: 15, y: 15, solid: true },
-  { key: "bannerRed", x: 5, y: 0, wall: true },
-  { key: "bannerSkull", x: 12, y: 0, wall: true },
-  { key: "web", x: 15, y: 1 },
-  { key: "web", x: 2, y: 1 },
-  { key: "web", x: 2, y: 12 },
-  { key: "cat", ...catCell, solid: true },
-  { key: "bones", x: 4, y: 8 },
-  { key: "bones", x: 13, y: 8 },
-  { key: "rubbleLarge", x: 7, y: 3 },
-  { key: "rubblePebbles", x: 10, y: 3 },
-  { key: "mossChunk", x: 6, y: 7 },
-  { key: "rubbleMedium", x: 11, y: 7 },
-  { key: "rubblePebbles", x: 3, y: 11 },
-  { key: "mossLarge", x: 14, y: 11 },
-  { key: "rubbleLarge", x: 6, y: 12 },
-  { key: "mossChunk", x: 11, y: 12 },
-  { key: "rubbleMedium", x: 5, y: 14 },
-  { key: "mossPebbles", x: 12, y: 14 }
-];
-const torches = [
-  { x: 4, y: 2 },
-  { x: 13, y: 2 },
-  { x: 1, y: 4 },
-  { x: 16, y: 4 },
-  { x: 1, y: 13 },
-  { x: 16, y: 13 },
-  { x: 4, y: 15 },
-  { x: 13, y: 15 }
-];
-const blockedDecor = new Set([
-  ...decor.filter((item) => item.solid).map((item) => cellKey(item.x, item.y)),
-  ...torches.map((torch) => cellKey(torch.x, torch.y))
-]);
+const decor = [{ key: "cat", ...catCell, solid: true }];
+const blockedDecor = new Set(decor.filter((item) => item.solid)
+  .map((item) => cellKey(item.x, item.y)));
 
-const player = { x: 9, y: 15, hp: 24, maxHp: 24, gold: 0, dmg: 4 };
+const player = { x: 3, y: 7, hp: 24, maxHp: 24, gold: 0, dmg: 4 };
 let enemies = [];
 let started = false;
 let gameOver = false;
@@ -83,8 +44,8 @@ let toastTimer;
 let dungeonScene;
 
 function reset() {
-  player.x = 9;
-  player.y = 15;
+  player.x = 3;
+  player.y = 7;
   player.hp = player.maxHp;
   player.gold = 0;
   dungeonScene?.stopPlayerWalk();
@@ -174,9 +135,11 @@ class DungeonScene extends Phaser.Scene {
   preload() {
     this.load.image("floorsAtlas", "assets/floors_compact.png");
     this.load.image("wallsAtlas", "assets/walls_compact.png");
-    this.load.image("rugsAtlas", "assets/rugs_compact.png");
-    this.load.image("propsAtlas", "assets/props_compact.png");
     this.load.image("actorsAtlas", "assets/actors_compact.png");
+    this.load.spritesheet("playerDownWalk", "assets/player_down_walk.png", {
+      frameWidth: 128,
+      frameHeight: 160
+    });
     this.load.spritesheet("playerUpWalk", "assets/player_up_walk.png", {
       frameWidth: 128,
       frameHeight: 160
@@ -194,14 +157,14 @@ class DungeonScene extends Phaser.Scene {
     this.createPlayerAnimation();
     this.createCatTexture();
     this.createCatAnimation();
-    this.createFireAnimation();
     this.drawRoom();
-    this.createLighting();
+    this.createVisionOverlay();
 
-    this.playerSprite = this.add.sprite(0, 0, "player")
+    this.playerSprite = this.add.sprite(0, 0, "playerDownWalk", 0)
       .setOrigin(0.5, 0.82)
+      .setFlipX(true)
       .setDepth(30);
-    this.playerSprite.setDisplaySize(110, 126);
+    this.playerSprite.setDisplaySize(PLAYER_DISPLAY_WIDTH, PLAYER_DISPLAY_HEIGHT);
     this.playerWalkTimer = null;
     this.enemySprites = [];
     this.syncActors();
@@ -238,6 +201,7 @@ class DungeonScene extends Phaser.Scene {
 
   createPlayerAnimation() {
     for (const [direction, texture] of [
+      ["down", "playerDownWalk"],
       ["up", "playerUpWalk"],
       ["right", "playerRightWalk"]
     ]) {
@@ -254,13 +218,14 @@ class DungeonScene extends Phaser.Scene {
     if (!this.playerSprite) return;
     const facing = direction === "left" ? "right" : direction;
     const texture = {
+      down: "playerDownWalk",
       up: "playerUpWalk",
       right: "playerRightWalk"
     }[facing];
     if (this.playerSprite.texture.key !== texture)
       this.playerSprite.setTexture(texture, 0);
     this.playerSprite.setFlipX(direction === "left");
-    this.playerSprite.setDisplaySize(110, 126);
+    this.playerSprite.setDisplaySize(PLAYER_DISPLAY_WIDTH, PLAYER_DISPLAY_HEIGHT);
     this.playerSprite.play(`player-${facing}-walk`, true);
     this.playerWalkTimer?.remove(false);
     this.playerWalkTimer = this.time.delayedCall(400, () => {
@@ -274,14 +239,15 @@ class DungeonScene extends Phaser.Scene {
     this.playerWalkTimer = null;
     if (!this.playerSprite) return;
     this.playerSprite.anims.stop();
-    const facing = direction === "left" ? "right" : direction;
+    const facing = direction === "left" ? "right" : direction || "down";
     const texture = {
+      down: "playerDownWalk",
       up: "playerUpWalk",
       right: "playerRightWalk"
-    }[facing] || "player";
+    }[facing];
     this.playerSprite.setTexture(texture, 0);
-    this.playerSprite.setFlipX(direction === "left");
-    this.playerSprite.setDisplaySize(110, 126);
+    this.playerSprite.setFlipX(direction === "left" || facing === "down");
+    this.playerSprite.setDisplaySize(PLAYER_DISPLAY_WIDTH, PLAYER_DISPLAY_HEIGHT);
   }
 
   createAtlasTextures() {
@@ -294,44 +260,12 @@ class DungeonScene extends Phaser.Scene {
     for (const [key, [x, y, width, height]] of Object.entries(wallFrames))
       this.extractTexture(key, "wallsAtlas", { x, y, width, height });
 
-    const rugFrames = {
-      rugSquare: [4, 4, 130, 128],
-      rugWide: [144, 4, 132, 82]
-    };
-    for (const [key, [x, y, width, height]] of Object.entries(rugFrames))
-      this.extractTexture(key, "rugsAtlas", { x, y, width, height }, "border");
-
     const floorFrames = {
-      floorStone0: [4, 4, 49, 44],
-      rubbleLarge: [4, 52, 54, 54],
-      rubbleMedium: [62, 52, 54, 54],
-      rubblePebbles: [120, 52, 54, 40],
-      mossChunk: [178, 52, 54, 54],
-      mossLarge: [236, 52, 54, 54],
-      mossPebbles: [294, 52, 54, 40]
+      floorStone0: [4, 4, 49, 44]
     };
     for (const [key, [x, y, width, height]] of Object.entries(floorFrames))
       this.extractTexture(key, "floorsAtlas", { x, y, width, height }, "border");
 
-    const propsFrames = {
-      torch: [4, 4, 92, 140],
-      bannerRed: [100, 4, 96, 130],
-      bannerSkull: [200, 4, 100, 130],
-      web: [304, 4, 120, 115],
-      barrel: [4, 148, 90, 103],
-      crate: [98, 148, 91, 100],
-      chest: [193, 148, 120, 117],
-      goldChest: [317, 148, 123, 130],
-      pot: [4, 292, 91, 104],
-      spikes: [99, 292, 112, 96],
-      bones: [215, 292, 110, 103],
-      skull: [329, 292, 113, 70]
-    };
-    for (const [key, [x, y, width, height]] of Object.entries(propsFrames))
-      this.extractTexture(key, "propsAtlas", { x, y, width, height }, "border");
-
-    this.extractTorchTextures();
-    this.extractActorFrames("player", { x: 4, y: 4, width: 118, height: 126 });
     this.extractActorFrames("goblin", { x: 126, y: 4, width: 112, height: 112 });
     this.extractActorFrames("skeleton", { x: 242, y: 4, width: 110, height: 116 });
   }
@@ -390,50 +324,6 @@ class DungeonScene extends Phaser.Scene {
     context.putImageData(image, 0, 0);
   }
 
-  extractTorchTextures() {
-    const source = this.textures.get("torch").getSourceImage();
-    const width = source.width, height = source.height;
-    const sourceCanvas = document.createElement("canvas");
-    sourceCanvas.width = width;
-    sourceCanvas.height = height;
-    const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
-    sourceContext.drawImage(source, 0, 0);
-
-    const pixels = sourceContext.getImageData(0, 0, width, height);
-    const body = sourceContext.getImageData(0, 0, width, height);
-    const flame = sourceContext.createImageData(width, height);
-    for (let y = 0; y < Math.min(72, height); y++) {
-      for (let x = 0; x < width; x++) {
-        const offset = (y * width + x) * 4;
-        const [red, green, blue, alpha] = pixels.data.slice(offset, offset + 4);
-        const isFlame = alpha > 0 && red > 165 && green > 45
-          && red > green * 1.08 && green > blue * 1.12;
-        if (!isFlame) continue;
-        flame.data.set(pixels.data.slice(offset, offset + 4), offset);
-        body.data[offset + 3] = 0;
-      }
-    }
-
-    const bodyTexture = this.textures.createCanvas("torchBody", width, height);
-    bodyTexture.getContext().putImageData(body, 0, 0);
-    bodyTexture.refresh();
-
-    const flameCanvas = document.createElement("canvas");
-    flameCanvas.width = width;
-    flameCanvas.height = height;
-    flameCanvas.getContext("2d").putImageData(flame, 0, 0);
-    for (let frame = 0; frame < 4; frame++) {
-      const key = `torchFlame${frame}`;
-      const texture = this.textures.createCanvas(key, width, height);
-      const context = texture.getContext();
-      for (let y = 0; y < Math.min(72, height); y++) {
-        const offset = Math.round(Math.sin(y * 0.19 + frame * Math.PI / 2) * 2);
-        context.drawImage(flameCanvas, 0, y, width, 1, offset, y, width, 1);
-      }
-      texture.refresh();
-    }
-  }
-
   extractActorFrames(name, bounds) {
     const source = this.textures.get("actorsAtlas").getSourceImage();
     const base = document.createElement("canvas");
@@ -476,15 +366,6 @@ class DungeonScene extends Phaser.Scene {
     const texture = this.textures.createCanvas(name, width, height);
     texture.getContext().drawImage(base, 0, 0);
     texture.refresh();
-  }
-
-  createFireAnimation() {
-    this.anims.create({
-      key: "torch-fire",
-      frames: [0, 1, 2, 3].map((frame) => ({ key: `torchFlame${frame}` })),
-      frameRate: 8,
-      repeat: -1
-    });
   }
 
   createCatTexture() {
@@ -567,45 +448,53 @@ class DungeonScene extends Phaser.Scene {
     }
 
     this.drawWallRuns();
-
-    this.add.image(...Object.values(cellCenter(5, 5)), "rugSquare")
-      .setDisplaySize(170, 136).setDepth(1);
-    this.add.image(...Object.values(cellCenter(12, 5)), "rugWide")
-      .setDisplaySize(166, 100).setDepth(1);
+    this.drawInternalWalls();
 
     for (const item of decor) {
-      if (item.wall && (item.key === "bannerRed" || item.key === "bannerSkull")) {
-        this.addImage(item.key, item.x, item.y, 52, 72, 12);
-      } else {
-        const sizes = {
-          web: [70, 68],
-          bones: [70, 54],
-          rubbleLarge: [44, 44],
-          rubbleMedium: [46, 44],
-          rubblePebbles: [38, 28],
-          mossChunk: [42, 42],
-          mossLarge: [46, 44],
-          mossPebbles: [38, 28],
-          cat: [44, 40]
-        };
-        const size = sizes[item.key] || [58, 64];
-          if (item.key === "cat") {
-            const position = cellCenter(item.x, item.y);
-            this.add.sprite(position.x, position.y, "catFrame0")
-              .setDisplaySize(44, 40)
-              .setDepth(31)
-              .play("cat-idle");
-          } else {
-            this.addImage(item.key, item.x, item.y, size[0], size[1], 12 + item.y * 0.01);
-          }
+      const position = cellCenter(item.x, item.y);
+      this.add.sprite(position.x, position.y, "catFrame0")
+        .setDisplaySize(44, 40)
+        .setDepth(14)
+        .play("cat-idle");
+    }
+  }
+
+  drawInternalWalls() {
+    const cornerA = this.textures.get("wallCornerA").getSourceImage();
+    const wallWidth = cornerA.width / 2;
+    for (let x = 9; x <= 12; x++) {
+      const ranges = x === 9 || x === 12
+        ? [[1, 7], [10, 16]]
+        : [[1, 6], [11, 16]];
+      for (const [firstRow, lastRow] of ranges) {
+        const height = (lastRow - firstRow + 1) * TILE;
+        const centerX = (x + 0.5) * TILE;
+        const centerY = (firstRow + lastRow + 1) * TILE / 2;
+        this.drawWallRun(
+          "wallVertical",
+          centerX - wallWidth / 2,
+          centerY - height / 2,
+          wallWidth,
+          height,
+          x === 9
+        );
       }
     }
 
-    this.addImage("spikes", 8.5, 8.5, TILE * 2, TILE * 2, 8);
-
-    for (const torch of torches) {
-      this.addImage("torchBody", torch.x, torch.y, TORCH_WIDTH, TORCH_HEIGHT, 12 + torch.y * 0.01);
-      this.addTorchFlame(torch.x, torch.y, TORCH_WIDTH, TORCH_HEIGHT, 20 + torch.y * 0.01);
+    const wallHeight = this.textures.get("wallHorizontal").getSourceImage().height;
+    const width = TILE * 2;
+    for (const y of [7, 10]) {
+      const centerX = 11 * TILE;
+      const centerY = (y + 0.5) * TILE;
+      this.drawWallRun(
+        "wallHorizontal",
+        centerX - width / 2,
+        centerY - wallHeight / 2,
+        width,
+        wallHeight,
+        false,
+        true
+      );
     }
   }
 
@@ -665,9 +554,9 @@ class DungeonScene extends Phaser.Scene {
     }
   }
 
-  drawWallRun(textureKey, startX, startY, width, height, flipX = false) {
+  drawWallRun(textureKey, startX, startY, width, height, flipX = false, horizontalOverride = null) {
     const wall = this.textures.get(textureKey).getSourceImage();
-    const horizontal = width > height;
+    const horizontal = horizontalOverride ?? width > height;
     const runWidth = Math.max(1, Math.round(width));
     const runHeight = Math.max(1, Math.round(height));
     const centerX = startX + runWidth / 2;
@@ -693,68 +582,75 @@ class DungeonScene extends Phaser.Scene {
     this.add.image(centerX, centerY, textureKeyForRun).setDepth(4);
   }
 
-  addImage(key, x, y, width, height, depth) {
-    const position = cellCenter(x, y);
-    return this.add.image(position.x, position.y, key)
-      .setDisplaySize(width, height)
-      .setDepth(depth);
-  }
-
-  addTorchFlame(x, y, width, height, depth) {
-    const position = cellCenter(x, y);
-    return this.add.sprite(position.x, position.y, "torchFlame0")
-      .setDisplaySize(width, height)
-      .setDepth(depth + 0.01)
-      .play("torch-fire");
-  }
-
-  createLighting() {
-    this.add.rectangle(
-      MAP_W * TILE / 2,
-      MAP_H * TILE / 2,
-      MAP_W * TILE,
-      MAP_H * TILE,
-      0x080d19
-    ).setAlpha(0.42).setDepth(15);
-
-    const texture = this.textures.createCanvas("torchGlow", 200, 200);
-    const context = texture.getContext();
-    const gradient = context.createRadialGradient(100, 100, 2, 100, 100, 100);
-    gradient.addColorStop(0, "rgba(255,180,91,0.58)");
-    gradient.addColorStop(0.38, "rgba(255,139,56,0.34)");
-    gradient.addColorStop(1, "rgba(255,112,38,0)");
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, 200, 200);
-    texture.refresh();
-
-    this.torchLights = torches.map((torch) => {
-      const center = cellCenter(torch.x, torch.y);
-      return this.add.image(center.x, center.y, "torchGlow")
-        .setDisplaySize(220, 220)
-        .setAlpha(0.74)
-        .setDepth(17);
-    });
-  }
-
   fitRoom(width, height) {
-    const padding = 32;
-    const framedWidth = MAP_W * TILE + padding * 2;
-    const framedHeight = MAP_H * TILE + padding * 2;
-    const zoom = Math.min(width / framedWidth, height / framedHeight);
+    const zoom = Math.min(width / (TILE * 12), height / (TILE * 8));
     this.cameras.main.setZoom(zoom);
-    this.cameras.main.centerOn(MAP_W * TILE / 2, MAP_H * TILE / 2);
+    this.cameras.main.setBounds(
+      -TILE,
+      -TILE,
+      (MAP_W + 2) * TILE,
+      (MAP_H + 2) * TILE
+    );
+    if (this.playerSprite)
+      this.cameras.main.startFollow(this.playerSprite, true, 0.12, 0.12);
+  }
+
+  createVisionOverlay() {
+    const width = MAP_W * TILE;
+    const height = MAP_H * TILE;
+    this.visionTexture = this.textures.createCanvas("visionOverlay", width, height);
+    this.visionContext = this.visionTexture.getContext();
+    this.visionImage = this.add.image(width / 2, height / 2, "visionOverlay")
+      .setDepth(29);
+    this.updateVisionOverlay();
+  }
+
+  updateVisionOverlay() {
+    const width = MAP_W * TILE;
+    const height = MAP_H * TILE;
+    const center = cellCenter(player.x, player.y);
+    const context = this.visionContext;
+    context.globalCompositeOperation = "source-over";
+    context.clearRect(0, 0, width, height);
+    context.fillStyle = "rgba(16, 19, 30, 0.56)";
+    context.fillRect(0, 0, width, height);
+    context.globalCompositeOperation = "destination-out";
+    for (const room of roomAmbient) {
+      if (room.level <= 0) continue;
+      context.fillStyle = `rgba(0, 0, 0, ${Math.min(room.level, 1)})`;
+      context.fillRect(
+        room.x * TILE,
+        room.y * TILE,
+        room.width * TILE,
+        room.height * TILE
+      );
+    }
+    const maskFade = context.createRadialGradient(
+      center.x, center.y, TILE * 0.9,
+      center.x, center.y, TILE * 5.5
+    );
+    maskFade.addColorStop(0, "rgba(0, 0, 0, 1)");
+    maskFade.addColorStop(0.2, "rgba(0, 0, 0, 0.98)");
+    maskFade.addColorStop(0.5, "rgba(0, 0, 0, 0.82)");
+    maskFade.addColorStop(0.78, "rgba(0, 0, 0, 0.34)");
+    maskFade.addColorStop(1, "rgba(0, 0, 0, 0)");
+    context.fillStyle = maskFade;
+    context.fillRect(0, 0, width, height);
+    context.globalCompositeOperation = "source-over";
+    this.visionTexture.refresh();
   }
 
   syncActors(animate = false) {
     if (!this.playerSprite) return;
     const playerPosition = cellCenter(player.x, player.y);
     this.moveSprite(this.playerSprite, playerPosition, animate);
+    this.updateVisionOverlay();
 
     const textures = { goblin: "goblin", skeleton: "skeleton", skull: "skull" };
     enemies.forEach((enemy, index) => {
       let sprite = this.enemySprites[index];
       if (!sprite) {
-        sprite = this.add.sprite(0, 0, textures[enemy.type]).setDepth(30);
+        sprite = this.add.sprite(0, 0, textures[enemy.type]).setDepth(28);
         this.enemySprites[index] = sprite;
       }
       sprite.setTexture(textures[enemy.type]);
@@ -770,6 +666,8 @@ class DungeonScene extends Phaser.Scene {
     this.enemySprites.slice(0, enemies.length).forEach((sprite) => sprite.setVisible(true));
   }
 
+
+
   moveSprite(sprite, position, animate) {
     if (animate) {
       this.tweens.add({
@@ -784,17 +682,11 @@ class DungeonScene extends Phaser.Scene {
     }
   }
 
-  update(time) {
-    this.torchLights?.forEach((light, index) => {
-      light.setAlpha(0.58 + Math.sin(time / 155 + index * 1.7) * 0.12);
-    });
-  }
 }
 
 function isWalkable(x, y) {
   return inBounds(x, y) && map[idx(x, y)] === FLOOR
-    && !blockedDecor.has(cellKey(x, y))
-    && !spikes.has(cellKey(x, y));
+    && !blockedDecor.has(cellKey(x, y));
 }
 
 function attackNearby(target) {
@@ -828,10 +720,6 @@ function movePlayer(dx, dy) {
     showToast("Каменная стена преграждает путь");
     return;
   }
-  if (spikes.has(cellKey(nx, ny))) {
-    showToast("Шипы преграждают проход");
-    return;
-  }
   const enemy = enemies.find((item) => item.x === nx && item.y === ny);
   if (enemy) {
     attackNearby(enemy);
@@ -848,6 +736,7 @@ function movePlayer(dx, dy) {
   player.x = nx;
   player.y = ny;
   const facing = dx === 0 && dy === -1 ? "up"
+    : dx === 0 && dy === 1 ? "down"
     : dx === 1 && dy === 0 ? "right"
     : dx === -1 && dy === 0 ? "left"
     : null;
