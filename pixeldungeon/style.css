@@ -148,7 +148,7 @@ html, body {
   width: min(70vw, 900px);
   aspect-ratio: 2 / 1;
   transform: translateX(-50%);
-  background: url("assets/cat_idle_spritesheet.png") 0 0 / 400% 100% no-repeat;
+  background: url("assets/cat_idle_spritesheet.png?v=blue-key-v1") 0 0 / 400% 100% no-repeat;
   image-rendering: pixelated;
   pointer-events: none;
   animation: catDialogIdle 4s steps(1, end) infinite;
@@ -263,7 +263,7 @@ html, body {
 }
 
 @media (max-width: 699px) {
-  #dlg-cat { width: 88vw; bottom: 28%; }
+  #dlg-cat { width: 88vw; bottom: 36%; }
   #dlg-box { padding: 9px 10px 10px; }
   .choice { padding: 8px 9px; font-size: 11px; }
 }
