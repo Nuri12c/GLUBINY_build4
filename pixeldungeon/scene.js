@@ -87,6 +87,7 @@ function reset() {
   player.y = 15;
   player.hp = player.maxHp;
   player.gold = 0;
+  dungeonScene?.stopPlayerWalk();
   enemies = [];
   wasNearCat = false;
   closeCatDialogue();
@@ -176,12 +177,21 @@ class DungeonScene extends Phaser.Scene {
     this.load.image("rugsAtlas", "assets/rugs_compact.png");
     this.load.image("propsAtlas", "assets/props_compact.png");
     this.load.image("actorsAtlas", "assets/actors_compact.png");
+    this.load.spritesheet("playerUpWalk", "assets/player_up_walk.png", {
+      frameWidth: 128,
+      frameHeight: 160
+    });
+    this.load.spritesheet("playerRightWalk", "assets/player_right_walk.png", {
+      frameWidth: 160,
+      frameHeight: 160
+    });
   }
 
   create() {
     dungeonScene = this;
     this.cameras.main.setBackgroundColor("#0d0e18");
     this.createAtlasTextures();
+    this.createPlayerAnimation();
     this.createCatTexture();
     this.createCatAnimation();
     this.createFireAnimation();
@@ -191,7 +201,8 @@ class DungeonScene extends Phaser.Scene {
     this.playerSprite = this.add.sprite(0, 0, "player")
       .setOrigin(0.5, 0.82)
       .setDepth(30);
-    this.playerSprite.setDisplaySize(118, 126);
+    this.playerSprite.setDisplaySize(110, 126);
+    this.playerWalkTimer = null;
     this.enemySprites = [];
     this.syncActors();
 
@@ -223,6 +234,54 @@ class DungeonScene extends Phaser.Scene {
 
     this.scale.on("resize", (size) => this.fitRoom(size.width, size.height));
     this.fitRoom(this.scale.width, this.scale.height);
+  }
+
+  createPlayerAnimation() {
+    for (const [direction, texture] of [
+      ["up", "playerUpWalk"],
+      ["right", "playerRightWalk"]
+    ]) {
+      this.anims.create({
+        key: `player-${direction}-walk`,
+        frames: this.anims.generateFrameNumbers(texture, { start: 0, end: 3 }),
+        frameRate: 10,
+        repeat: -1
+      });
+    }
+  }
+
+  playPlayerWalk(direction) {
+    if (!this.playerSprite) return;
+    const facing = direction === "left" ? "right" : direction;
+    const texture = {
+      up: "playerUpWalk",
+      right: "playerRightWalk"
+    }[facing];
+    if (this.playerSprite.texture.key !== texture)
+      this.playerSprite.setTexture(texture, 0);
+    this.playerSprite.setFlipX(direction === "left");
+    this.playerSprite.setDisplaySize(110, 126);
+    this.playerSprite.play(`player-${facing}-walk`, true);
+    this.playerWalkTimer?.remove(false);
+    this.playerWalkTimer = this.time.delayedCall(400, () => {
+      this.playerWalkTimer = null;
+      this.stopPlayerWalk(direction);
+    });
+  }
+
+  stopPlayerWalk(direction = null) {
+    this.playerWalkTimer?.remove(false);
+    this.playerWalkTimer = null;
+    if (!this.playerSprite) return;
+    this.playerSprite.anims.stop();
+    const facing = direction === "left" ? "right" : direction;
+    const texture = {
+      up: "playerUpWalk",
+      right: "playerRightWalk"
+    }[facing] || "player";
+    this.playerSprite.setTexture(texture, 0);
+    this.playerSprite.setFlipX(direction === "left");
+    this.playerSprite.setDisplaySize(110, 126);
   }
 
   createAtlasTextures() {
@@ -788,6 +847,12 @@ function movePlayer(dx, dy) {
   }
   player.x = nx;
   player.y = ny;
+  const facing = dx === 0 && dy === -1 ? "up"
+    : dx === 1 && dy === 0 ? "right"
+    : dx === -1 && dy === 0 ? "left"
+    : null;
+  if (facing) dungeonScene?.playPlayerWalk(facing);
+  else dungeonScene?.stopPlayerWalk();
   endTurn();
   checkCatProximity();
 }
